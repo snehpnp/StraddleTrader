@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   saveCredentials,
+  getLoginUrl,
   connectBroker,
   getBrokerStatus,
   disconnectBroker,
@@ -12,6 +13,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.post('/credentials', saveCredentials);
+router.get('/login-url', getLoginUrl);
 router.post('/connect', connectBroker);
 router.get('/status', getBrokerStatus);
 router.post('/disconnect', disconnectBroker);

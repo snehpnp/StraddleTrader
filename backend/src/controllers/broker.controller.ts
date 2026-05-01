@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import BrokerConnection from '../models/BrokerConnection';
 import { encrypt, decrypt } from '../services/encryption.service';
-import { StoxkartService } from '../services/stoxkart.service';
+import { StoxkartService, STOXKART_LOGIN_URL } from '../services/stoxkart.service';
 
 interface AuthReq extends Request { userId?: string; }
 
@@ -30,8 +30,29 @@ export const saveCredentials = async (req: AuthReq, res: Response): Promise<void
   }
 };
 
+export const getLoginUrl = async (req: AuthReq, res: Response): Promise<void> => {
+  try {
+    const conn = await BrokerConnection.findOne({ userId: req.userId });
+    if (!conn) {
+      res.status(404).json({ success: false, message: 'Credentials not found. Save them first.' });
+      return;
+    }
+    const apiKey = decrypt(conn.apiKeyEncrypted);
+    const url = STOXKART_LOGIN_URL(apiKey);
+    res.json({ success: true, url });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to generate login URL' });
+  }
+};
+
 export const connectBroker = async (req: AuthReq, res: Response): Promise<void> => {
   try {
+    const { authToken } = req.body;
+    if (!authToken) {
+      res.status(400).json({ success: false, message: 'Auth token (request_token) is required from redirect' });
+      return;
+    }
+
     const conn = await BrokerConnection.findOne({ userId: req.userId });
     if (!conn) {
       res.status(404).json({ success: false, message: 'Credentials not found. Save them first.' });
@@ -40,20 +61,25 @@ export const connectBroker = async (req: AuthReq, res: Response): Promise<void> 
     const apiKey = decrypt(conn.apiKeyEncrypted);
     const apiSecret = decrypt(conn.apiSecretEncrypted);
 
-    const sessionData = await StoxkartService.generateSession(apiKey, apiSecret);
-    const accessToken: string = sessionData.accessToken || sessionData.data?.accessToken || '';
+    const sessionData = await StoxkartService.generateSession(apiKey, apiSecret, authToken);
+    
+    // According to docs, data comes inside sessionData.data
+    const tokenData = sessionData.data;
+    if (!tokenData?.access_token) {
+        throw new Error(sessionData.message || 'Failed to get access token');
+    }
 
     await BrokerConnection.updateOne(
       { userId: req.userId },
       {
-        accessTokenEncrypted: encrypt(accessToken),
-        brokerUserId: sessionData.userId || sessionData.data?.userId || '',
+        accessTokenEncrypted: encrypt(tokenData.access_token),
+        brokerUserId: tokenData.user_id || '',
         status: 'connected',
         lastSyncedAt: new Date(),
         tokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
       }
     );
-    res.json({ success: true, message: 'Broker connected successfully' });
+    res.json({ success: true, message: 'Broker connected successfully', user: tokenData.user_name });
   } catch (err: unknown) {
     console.error('connectBroker error:', err);
     const msg = err instanceof Error ? err.message : 'Connection failed';
