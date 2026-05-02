@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { Request, Response } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import User from '../models/User';

@@ -2,7 +2,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, TrendingUp, Lock, Mail } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,14 +45,15 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-3">
-            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-white">StraddleTrader</span>
-          </div>
-          <p className="text-gray-400 text-sm">Sign in to your trading account</p>
-        </div>
+          <Image
+            src="/logo.png"
+            alt="StraddleTrader"
+            width={400}
+            height={80}
+            className="mx-auto mb-3"
+            priority
+          />
+      </div>
 
         {/* Card */}
         <div className="bg-gray-900/60 border border-gray-800 rounded-2xl p-8 shadow-2xl backdrop-blur-sm">
