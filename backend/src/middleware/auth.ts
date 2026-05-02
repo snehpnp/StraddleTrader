@@ -11,18 +11,24 @@ export const authMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Fix: safe access with optional chaining
-  const authHeader = req.headers?.authorization;
+  // Read token from cookies first, then fallback to Authorization header
+  let token = req.cookies?.access_token;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+  if (!token) {
+    // Fallback to Authorization header
+    const authHeader = req.headers?.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.split(" ")[1];
+    }
+  }
+
+  if (!token) {
     res.status(401).json({
       success: false,
-      message: "No token provided",
+      message: "Access denied. No token provided.",
     });
     return;
   }
-
-  const token = authHeader.split(" ")[1];
 
   try {
     const decoded = jwt.verify(

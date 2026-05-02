@@ -1,8 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { RefreshCw, FileText } from "lucide-react";
-
-const API = process.env.NEXT_PUBLIC_API_URL;
+import { portfolioApi, type Log } from "@/api";
 
 const actionColors: Record<string, string> = {
   ENTRY: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
@@ -15,26 +14,21 @@ const actionColors: Record<string, string> = {
 };
 
 export default function LogsPage() {
-  const [logs, setLogs] = useState<Array<{
-    _id: string; action: string; message: string; executedAt: string; pnl?: number;
-  }>>([]);
+  const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const getToken = () => localStorage.getItem("token") || "";
 
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/portfolio/logs`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      setLogs(data.data || []);
+      const { data } = await portfolioApi.getLogs();
+      setLogs(data.logs || []);
     } catch { /* silent */ }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchLogs(); }, []);
+  useEffect(() => {
+    fetchLogs();
+  }, []);
 
   return (
     <div className="space-y-6">

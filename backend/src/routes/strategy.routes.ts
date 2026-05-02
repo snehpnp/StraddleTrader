@@ -9,11 +9,11 @@ import {
   deactivateStrategy,
   exitStrategy,
 } from '../controllers/strategy.controller';
-import { authMiddleware } from '../middleware/auth';
+import { enhancedAuthMiddleware } from '../middleware/tokenRefresh';
 
 const router = Router();
 
-router.use(authMiddleware);
+router.use(enhancedAuthMiddleware);
 
 router.get('/', getStrategies);
 router.post('/', createStrategy);

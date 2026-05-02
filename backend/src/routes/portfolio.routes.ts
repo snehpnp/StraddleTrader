@@ -6,11 +6,11 @@ import {
   getTrades,
   getLogs,
 } from '../controllers/portfolio.controller';
-import { authMiddleware } from '../middleware/auth';
+import { enhancedAuthMiddleware } from '../middleware/tokenRefresh';
 
 const router = Router();
 
-router.use(authMiddleware);
+router.use(enhancedAuthMiddleware);
 
 router.get('/balance', getBalance);
 router.get('/positions', getPositions);

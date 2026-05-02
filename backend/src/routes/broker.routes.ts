@@ -6,11 +6,11 @@ import {
   getBrokerStatus,
   disconnectBroker,
 } from '../controllers/broker.controller';
-import { authMiddleware } from '../middleware/auth';
+import { enhancedAuthMiddleware } from '../middleware/tokenRefresh';
 
 const router = Router();
 
-router.use(authMiddleware);
+router.use(enhancedAuthMiddleware);
 
 router.post('/credentials', saveCredentials);
 router.get('/login-url', getLoginUrl);

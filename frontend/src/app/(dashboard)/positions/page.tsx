@@ -1,41 +1,26 @@
 "use client";
 import { useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
-
-const API = process.env.NEXT_PUBLIC_API_URL;
-
-interface Position {
-  tradingSymbol: string;
-  netQty: number;
-  buyAvg: number;
-  sellAvg: number;
-  ltp: number;
-  pnl: number;
-  product: string;
-}
+import { portfolioApi, type Position } from "@/api";
 
 export default function PositionsPage() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const getToken = () => localStorage.getItem("token") || "";
-
   const fetchPositions = async () => {
     setLoading(true); setError("");
     try {
-      const res = await fetch(`${API}/api/portfolio/positions`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setPositions(data.data?.positions || data.data || []);
+      const { data } = await portfolioApi.getPositions();
+      setPositions(data.positions || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load positions");
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchPositions(); }, []);
+  useEffect(() => {
+    fetchPositions();
+  }, []);
 
   const totalPnL = positions.reduce((sum, p) => sum + (p.pnl || 0), 0);
 
@@ -87,14 +72,14 @@ export default function PositionsPage() {
             <tbody>
               {positions.map((p, i) => (
                 <tr key={i} className="border-b border-gray-800/50 last:border-0 hover:bg-gray-800/30 transition-colors">
-                  <td className="px-4 py-3 text-white font-mono text-xs">{p.tradingSymbol}</td>
-                  <td className={`px-4 py-3 text-right ${p.netQty > 0 ? "text-emerald-400" : "text-red-400"}`}>{p.netQty > 0 ? "+" : ""}{p.netQty}</td>
+                  <td className="px-4 py-3 text-white font-mono text-xs">{p.tradingSymbol || p.symbol || "-"}</td>
+                  <td className={`px-4 py-3 text-right ${(p.netQty ?? 0) > 0 ? "text-emerald-400" : "text-red-400"}`}>{(p.netQty ?? 0) > 0 ? "+" : ""}{p.netQty ?? 0}</td>
                   <td className="px-4 py-3 text-right text-gray-300">₹{(p.buyAvg || p.sellAvg || 0).toFixed(2)}</td>
                   <td className="px-4 py-3 text-right text-gray-300">₹{(p.ltp || 0).toFixed(2)}</td>
                   <td className={`px-4 py-3 text-right font-semibold ${(p.pnl || 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {(p.pnl || 0) >= 0 ? "+" : ""}₹{(p.pnl || 0).toFixed(2)}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-500 text-xs">{p.product}</td>
+                  <td className="px-4 py-3 text-right text-gray-500 text-xs">{p.product || "-"}</td>
                 </tr>
               ))}
             </tbody>

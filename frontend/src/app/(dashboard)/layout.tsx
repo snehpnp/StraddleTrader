@@ -15,6 +15,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
+import { useAuth } from "@/components/auth";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -25,31 +26,16 @@ const navItems = [
   { href: "/logs", icon: FileText, label: "Audit Logs" },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userName, setUserName] = useState("Trader");
+// Separate Sidebar component to avoid creating during render
+interface SidebarProps {
+  pathname: string;
+  userName: string;
+  setSidebarOpen: (open: boolean) => void;
+  onLogout: () => void;
+}
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      if (user?.name) setUserName(user.name);
-    } catch {}
-  }, [router]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.replace("/login");
-  };
-
-  const Sidebar = () => (
+function Sidebar({ pathname, userName, setSidebarOpen, onLogout }: SidebarProps) {
+  return (
     <aside className="flex flex-col h-full bg-gray-900 border-r border-gray-800 w-64">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-800">
@@ -92,7 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <button
           id="logout-btn"
-          onClick={handleLogout}
+          onClick={onLogout}
           className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
@@ -101,12 +87,63 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </aside>
   );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      const returnUrl = encodeURIComponent(pathname || "/dashboard");
+      router.replace(`/login?returnUrl=${returnUrl}`);
+    }
+  }, [isLoading, isAuthenticated, router, pathname]);
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  // Get user name from auth context
+  const userName = user?.name || "Trader";
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#070b14]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-gray-400 text-sm">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render layout if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#070b14]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <p className="text-gray-400 text-sm">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#070b14] overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex flex-shrink-0">
-        <Sidebar />
+        <Sidebar 
+          pathname={pathname}
+          userName={userName}
+          setSidebarOpen={setSidebarOpen}
+          onLogout={handleLogout}
+        />
       </div>
 
       {/* Mobile Sidebar Overlay */}
@@ -114,7 +151,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
           <div className="relative z-10">
-            <Sidebar />
+            <Sidebar 
+              pathname={pathname}
+              userName={userName}
+              setSidebarOpen={setSidebarOpen}
+              onLogout={handleLogout}
+            />
           </div>
         </div>
       )}

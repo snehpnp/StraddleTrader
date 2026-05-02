@@ -50,3 +50,19 @@ export const getExpiries = async (req: AuthReq, res: Response): Promise<void> =>
     res.status(500).json({ success: false, message: msg });
   }
 };
+
+export const getLotSize = async (req: AuthReq, res: Response): Promise<void> => {
+  try {
+    const { underlying } = req.query;
+    if (!underlying) {
+        res.status(400).json({ success: false, message: 'underlying query required' });
+        return;
+    }
+    
+    const lotSize = instrumentService.getLotSize(underlying as string);
+    res.json({ success: true, lotSize });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Error';
+    res.status(500).json({ success: false, message: msg });
+  }
+};

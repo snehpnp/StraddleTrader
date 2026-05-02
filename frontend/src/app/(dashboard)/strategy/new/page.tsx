@@ -2,12 +2,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { marketApi, strategyApi } from "@/api";
 
-const API = process.env.NEXT_PUBLIC_API_URL;
-
-const UNDERLYINGS = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"];
+const SYMBOLS = ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY", "SENSEX"];
 const STRIKE_STEPS: Record<string, number> = {
-  NIFTY: 50, BANKNIFTY: 100, FINNIFTY: 50, MIDCPNIFTY: 25,
+  NIFTY: 50, BANKNIFTY: 100, FINNIFTY: 50, MIDCPNIFTY: 25, SENSEX: 100,
 };
 
 export default function NewStrategyPage() {
@@ -15,10 +14,11 @@ export default function NewStrategyPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [expiries, setExpiries] = useState<string[]>([]);
+  const [lotSize, setLotSize] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     name: "My ATM Straddle",
-    underlying: "NIFTY",
+    symbol: "NIFTY",
     expiry: "",
     direction: "short" as "long" | "short",
     quantityLots: 1,
@@ -29,59 +29,56 @@ export default function NewStrategyPage() {
     squareOffTime: "15:20",
   });
 
-  const getToken = () => localStorage.getItem("token") || "";
-
   useEffect(() => {
-    const fetchExpiries = async () => {
+    const fetchExpiriesAndLotSize = async () => {
       try {
-        const res = await fetch(`${API}/api/market/expiries?underlying=${form.underlying}`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
-        const data = await res.json();
-        if (data.expiries?.length) {
-          setExpiries(data.expiries);
-          setForm((f) => ({ ...f, expiry: data.expiries[0] }));
+        // Fetch expiries for selected symbol
+        const expiriesRes = await marketApi.getExpiries(form.symbol);
+        if (expiriesRes.data.expiries?.length) {
+          setExpiries(expiriesRes.data.expiries);
+          setForm((f) => ({ ...f, expiry: expiriesRes.data.expiries[0] }));
         }
+
+        // Fetch lot size for selected symbol
+        const lotSizeRes = await marketApi.getLotSize(form.symbol);
+        setLotSize(lotSizeRes.data.lotSize);
       } catch {
         // Broker might not be connected — use manual input
+        setLotSize(null);
       }
     };
-    fetchExpiries();
-  }, [form.underlying]);
+    fetchExpiriesAndLotSize();
+  }, [form.symbol]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError("");
     try {
-      const res = await fetch(`${API}/api/strategy`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({
-          name: form.name,
-          strategyType: "straddle",
-          config: {
-            underlying: form.underlying,
-            expiry: form.expiry,
-            direction: form.direction,
-            quantityLots: form.quantityLots,
-            entryTime: form.entryTime,
-            slPoints: form.slPoints,
-            targetPoints: form.targetPoints,
-            maxLoss: form.maxLoss,
-            squareOffTime: form.squareOffTime,
-            strikeStep: STRIKE_STEPS[form.underlying] || 50,
-          },
-        }),
+      await strategyApi.createStrategy({
+        name: form.name,
+        strategyType: "straddle",
+        config: {
+          symbol: form.symbol,
+          underlying: form.symbol,
+          expiry: form.expiry,
+          direction: form.direction,
+          quantityLots: form.quantityLots,
+          lotSize: lotSize,
+          entryTime: form.entryTime,
+          slPoints: form.slPoints,
+          targetPoints: form.targetPoints,
+          maxLoss: form.maxLoss,
+          squareOffTime: form.squareOffTime,
+          strikeStep: STRIKE_STEPS[form.symbol] || 50,
+        },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
       router.push("/strategy");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create strategy");
     } finally { setLoading(false); }
   };
 
-  const field = (label: string, children: React.ReactNode) => (
+  const field = (label: React.ReactNode, children: React.ReactNode) => (
     <div>
       <label className="block text-sm text-gray-400 mb-1.5">{label}</label>
       {children}
@@ -114,10 +111,10 @@ export default function NewStrategyPage() {
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          {/* Underlying */}
-          {field("Underlying",
-            <select id="strategy-underlying" value={form.underlying} onChange={(e) => setForm({ ...form, underlying: e.target.value })} className={selectClass}>
-              {UNDERLYINGS.map((u) => <option key={u} value={u}>{u}</option>)}
+          {/* Symbol */}
+          {field("Symbol",
+            <select id="strategy-symbol" value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })} className={selectClass}>
+              {SYMBOLS.map((s: string) => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
 
@@ -138,8 +135,16 @@ export default function NewStrategyPage() {
               : <input id="strategy-expiry-input" type="date" required value={form.expiry} onChange={(e) => setForm({ ...form, expiry: e.target.value })} className={inputClass} />
           )}
 
-          {/* Lots */}
-          {field("Quantity (Lots)",
+          {/* Lots with Lot Size Info */}
+          {field(
+            <span className="flex items-center gap-2">
+              Quantity (Lots)
+              {lotSize && (
+                <span className="text-xs text-emerald-400 font-normal">
+                  (1 Lot = {lotSize} Qty)
+                </span>
+              )}
+            </span>,
             <input id="strategy-lots" type="number" min={1} required value={form.quantityLots} onChange={(e) => setForm({ ...form, quantityLots: +e.target.value })} className={inputClass} />
           )}
 

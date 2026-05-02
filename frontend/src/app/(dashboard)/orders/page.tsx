@@ -1,19 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-
-const API = process.env.NEXT_PUBLIC_API_URL;
-
-interface Order {
-  orderId: string;
-  tradingSymbol: string;
-  transactionType: string;
-  orderType: string;
-  quantity: number;
-  price: number;
-  status: string;
-  orderTime?: string;
-}
+import { portfolioApi, type Order } from "@/api";
 
 const orderStatusColor: Record<string, string> = {
   COMPLETE: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
@@ -28,23 +16,19 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const getToken = () => localStorage.getItem("token") || "";
-
   const fetchOrders = async () => {
     setLoading(true); setError("");
     try {
-      const res = await fetch(`${API}/api/portfolio/orders`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setOrders(data.data?.orders || data.data || []);
+      const { data } = await portfolioApi.getOrders();
+      setOrders(data.orders || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load orders");
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchOrders(); }, []);
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   return (
     <div className="space-y-6">

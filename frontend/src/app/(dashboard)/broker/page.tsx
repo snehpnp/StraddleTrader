@@ -1,9 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Link2, ShieldCheck, AlertTriangle, CheckCircle, Loader2, ExternalLink } from "lucide-react";
-
-const API = process.env.NEXT_PUBLIC_API_URL;
+import { brokerApi } from "@/api";
 
 export default function BrokerPage() {
   const searchParams = useSearchParams();
@@ -16,40 +15,47 @@ export default function BrokerPage() {
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [status, setStatus] = useState<{ connected: boolean; status: string; brokerUserId?: string; lastSyncedAt?: string } | null>(null);
 
-  const getToken = () => localStorage.getItem("token") || "";
-
-  const fetchStatus = async () => {
+  // Handle connect after redirect from Stoxkart
+  const handleConnectAfterRedirect = useCallback(async (authToken: string) => {
+    setConnecting(true); setMsg(null);
     try {
-      const res = await fetch(`${API}/api/broker/status`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      setStatus(data);
-    } catch { /* silent */ }
-  };
+      const { data } = await brokerApi.connectBroker(authToken);
+      setMsg({ type: "success", text: data.message || "Broker connected successfully! ✓" });
 
-  useEffect(() => { 
-    fetchStatus(); 
-    
+      // Clean up URL
+      router.replace("/broker");
+
+      // Refresh status
+      const statusRes = await brokerApi.getBrokerStatus();
+      setStatus(statusRes.data);
+    } catch (err: unknown) {
+      setMsg({ type: "error", text: err instanceof Error ? err.message : "Connection failed" });
+    } finally { setConnecting(false); }
+  }, [router]);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const { data } = await brokerApi.getBrokerStatus();
+        setStatus(data);
+      } catch { /* silent */ }
+    };
+
+    fetchStatus();
+
     // Check if we just returned from Stoxkart with an auth_token
     const authToken = searchParams.get("auth_token");
     if (authToken) {
        handleConnectAfterRedirect(authToken);
     }
-  }, [searchParams]);
+  }, [searchParams, handleConnectAfterRedirect]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setMsg(null);
     try {
-      const res = await fetch(`${API}/api/broker/credentials`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ apiKey, apiSecret }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setMsg({ type: "success", text: "Credentials saved securely ✓. Now click Login to connect." });
+      const { data } = await brokerApi.saveCredentials(apiKey, apiSecret);
+      setMsg({ type: "success", text: data.message || "Credentials saved securely ✓. Now click Login to connect." });
     } catch (err: unknown) {
       setMsg({ type: "error", text: err instanceof Error ? err.message : "Failed" });
     } finally { setSaving(false); }
@@ -58,12 +64,8 @@ export default function BrokerPage() {
   const handleLoginClick = async () => {
     setConnecting(true); setMsg(null);
     try {
-      const res = await fetch(`${API}/api/broker/login-url`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      
+      const { data } = await brokerApi.getLoginUrl();
+
       // Redirect to Stoxkart
       window.location.href = data.url;
     } catch (err: unknown) {
@@ -72,40 +74,15 @@ export default function BrokerPage() {
     }
   };
 
-  const handleConnectAfterRedirect = async (authToken: string) => {
-    setConnecting(true); setMsg(null);
-    try {
-      const res = await fetch(`${API}/api/broker/connect`, {
-        method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${getToken()}` 
-        },
-        body: JSON.stringify({ authToken })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setMsg({ type: "success", text: "Broker connected successfully! ✓" });
-      
-      // Clean up URL
-      router.replace("/broker");
-      await fetchStatus();
-    } catch (err: unknown) {
-      setMsg({ type: "error", text: err instanceof Error ? err.message : "Connection failed" });
-    } finally { setConnecting(false); }
-  };
-
   const handleDisconnect = async () => {
     setDisconnecting(true); setMsg(null);
     try {
-      const res = await fetch(`${API}/api/broker/disconnect`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setMsg({ type: "success", text: "Broker disconnected" });
-      await fetchStatus();
+      const { data } = await brokerApi.disconnectBroker();
+      setMsg({ type: "success", text: data.message || "Broker disconnected" });
+
+      // Refresh status
+      const statusRes = await brokerApi.getBrokerStatus();
+      setStatus(statusRes.data);
     } catch (err: unknown) {
       setMsg({ type: "error", text: err instanceof Error ? err.message : "Failed" });
     } finally { setDisconnecting(false); }

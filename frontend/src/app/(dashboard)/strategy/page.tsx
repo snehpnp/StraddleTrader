@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Zap, Plus, Play, Square, LogOut, Trash2, Clock, CheckCircle, XCircle } from "lucide-react";
-
-const API = process.env.NEXT_PUBLIC_API_URL;
+import { strategyApi } from "@/api";
 
 interface Strategy {
   _id: string;
@@ -39,23 +38,26 @@ export default function StrategyPage() {
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
 
-  const getToken = () => localStorage.getItem("token") || "";
-  const headers = { Authorization: `Bearer ${getToken()}` };
-
-  const fetchStrategies = async () => {
-    try {
-      const res = await fetch(`${API}/api/strategy`, { headers });
-      const data = await res.json();
-      setStrategies(data.strategies || []);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { fetchStrategies(); }, []);
+  useEffect(() => {
+    const fetchStrategies = async () => {
+      try {
+        const { data } = await strategyApi.getStrategies();
+        setStrategies(data.strategies || []);
+      } catch { /* silent */ }
+      finally { setLoading(false); }
+    };
+    fetchStrategies();
+  }, []);
 
   const action = async (id: string, endpoint: string) => {
     setActionId(id);
-    await fetch(`${API}/api/strategy/${id}/${endpoint}`, { method: "POST", headers });
+    if (endpoint === "activate") {
+      await strategyApi.activateStrategy(id);
+    } else if (endpoint === "deactivate") {
+      await strategyApi.deactivateStrategy(id);
+    } else if (endpoint === "exit") {
+      await strategyApi.exitStrategy(id);
+    }
     await fetchStrategies();
     setActionId(null);
   };
@@ -63,7 +65,7 @@ export default function StrategyPage() {
   const deleteStrategy = async (id: string) => {
     if (!confirm("Delete this strategy?")) return;
     setActionId(id);
-    await fetch(`${API}/api/strategy/${id}`, { method: "DELETE", headers });
+    await strategyApi.deleteStrategy(id);
     await fetchStrategies();
     setActionId(null);
   };

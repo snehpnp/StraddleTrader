@@ -4,8 +4,7 @@ import {
   TrendingUp, TrendingDown, Wallet, Activity,
   Zap, BarChart3, RefreshCw, AlertCircle
 } from "lucide-react";
-
-const API = process.env.NEXT_PUBLIC_API_URL;
+import { brokerApi } from "@/api";
 
 interface BrokerStatus {
   connected: boolean;
@@ -26,15 +25,10 @@ export default function DashboardPage() {
   const [brokerStatus, setBrokerStatus] = useState<BrokerStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const getToken = () => typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
-
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await fetch(`${API}/api/broker/status`, {
-          headers: { Authorization: `Bearer ${getToken()}` },
-        });
-        const data = await res.json();
+        const { data } = await brokerApi.getBrokerStatus();
         setBrokerStatus(data);
       } catch {
         setBrokerStatus({ connected: false, status: "error" });
