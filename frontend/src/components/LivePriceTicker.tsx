@@ -94,7 +94,6 @@ export default function LivePriceTicker() {
       };
 
       ws.onerror = (error) => {
-        console.error("[WS] Connection error:", error);
         setWsConnected(false);
       };
 
