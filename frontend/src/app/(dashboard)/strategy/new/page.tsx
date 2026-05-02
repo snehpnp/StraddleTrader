@@ -89,7 +89,7 @@ export default function NewStrategyPage() {
   const selectClass = inputClass + " cursor-pointer";
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white transition-all">
           <ArrowLeft className="w-4 h-4" />

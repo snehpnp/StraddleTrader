@@ -19,6 +19,7 @@ interface Instrument {
 
 class InstrumentService {
   private instruments: Instrument[] = [];
+  private lookupMap: Map<string, Instrument> = new Map(); // Fast O(1) lookup
   private masterFilePath = path.join(process.cwd(), 'data', 'nfo_master.json');
 
   constructor() {
@@ -42,8 +43,29 @@ class InstrumentService {
   async loadMaster() {
     try {
       console.log('🔄 Loading NFO Master...');
-      if (!fs.existsSync(this.masterFilePath) || fs.statSync(this.masterFilePath).size === 0) {
-          await this.downloadMaster();
+      
+      const fileExists = fs.existsSync(this.masterFilePath);
+      let shouldDownload = !fileExists;
+
+      if (fileExists) {
+        const stats = fs.statSync(this.masterFilePath);
+        const lastModified = new Date(stats.mtime);
+        const today = new Date();
+        
+        // Check if file is from a previous day and it's already past 7 AM
+        const isToday = lastModified.getDate() === today.getDate() && 
+                        lastModified.getMonth() === today.getMonth() &&
+                        lastModified.getFullYear() === today.getFullYear();
+        
+        if (!isToday && today.getHours() >= 7) {
+          shouldDownload = true;
+        }
+
+        if (stats.size === 0) shouldDownload = true;
+      }
+
+      if (shouldDownload) {
+        await this.downloadMaster();
       }
 
       const raw = fs.readFileSync(this.masterFilePath, 'utf8');
@@ -67,11 +89,28 @@ class InstrumentService {
         
         return expiryDate >= today;
       });
+
+      // Build Fast Lookup Map and optimize memory
+      this.lookupMap.clear();
+      this.instruments = this.instruments.map(i => {
+        const optimized = {
+          token: i.token,
+          symbol: i.symbol,
+          symbol_description: i.symbol_description,
+          expiry_date: i.expiry_date,
+          strike_price: i.strike_price,
+          option_type: i.option_type,
+          lot_size: i.lot_size,
+          exchange: i.exchange,
+          instrument_type: i.instrument_type
+        };
+        // Key format: SYMBOL_EXPIRY_STRIKE_TYPE (e.g. NIFTY_26-05-2026_2250000_CE)
+        const key = `${optimized.symbol}_${optimized.expiry_date}_${optimized.strike_price}_${optimized.option_type}`;
+        this.lookupMap.set(key, optimized);
+        return optimized;
+      });
       
-      console.log(`✅ Loaded ${this.instruments.length} active instruments (${ALLOWED_SYMBOLS.join(', ')})`);
-      if (this.instruments.length > 0) {
-        console.log('📝 Sample Instrument:', this.instruments[0]);
-      }
+      console.log(`✅ Loaded ${this.instruments.length} active instruments into O(1) Map.`);
     } catch (err) {
       console.error('❌ Failed to load master:', err);
     }
@@ -94,16 +133,12 @@ class InstrumentService {
   }
 
   findATMOptions(underlying: string, expiry: string, atmStrike: number) {
-    const options = this.instruments.filter(i => 
-      i.symbol === underlying && 
-      i.expiry_date === expiry && 
-      (parseInt(i.strike_price) / 100) === atmStrike &&
-      (i.option_type === 'CE' || i.option_type === 'PE')
-    );
-
+    // Strike is multiplied by 100 as per Stoxkart master format
+    const strikeStr = (atmStrike * 100).toString();
+    
     return {
-      ce: options.find(o => o.option_type === 'CE'),
-      pe: options.find(o => o.option_type === 'PE')
+      ce: this.lookupMap.get(`${underlying}_${expiry}_${strikeStr}_CE`),
+      pe: this.lookupMap.get(`${underlying}_${expiry}_${strikeStr}_PE`)
     };
   }
 
