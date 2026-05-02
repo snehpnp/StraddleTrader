@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import BrokerConnection from '../models/BrokerConnection';
 import { encrypt, decrypt } from '../services/encryption.service';
 import { StoxkartService, STOXKART_LOGIN_URL } from '../services/stoxkart.service';
+import { feedService } from '../services/feed.service';
 
 interface AuthReq extends Request { userId?: string; }
 
@@ -73,12 +74,20 @@ export const connectBroker = async (req: AuthReq, res: Response): Promise<void> 
       { userId: req.userId },
       {
         accessTokenEncrypted: encrypt(tokenData.access_token),
+        feedTokenEncrypted: tokenData.feed_token ? encrypt(tokenData.feed_token) : undefined,
         brokerUserId: tokenData.user_id || '',
         status: 'connected',
         lastSyncedAt: new Date(),
         tokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
       }
     );
+
+    // Start WebSocket connection for live price streaming
+    if (tokenData.feed_token) {
+      feedService.connect(tokenData.feed_token, apiKey);
+      console.log(`[Broker] 🔌 WebSocket started for user ${req.userId}`);
+    }
+
     res.json({ success: true, message: 'Broker connected successfully', user: tokenData.user_name });
   } catch (err: unknown) {
     console.error('connectBroker error:', err);

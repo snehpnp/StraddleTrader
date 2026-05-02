@@ -9,16 +9,31 @@ const STRIKE_STEPS: Record<string, number> = {
   NIFTY: 50, BANKNIFTY: 100, FINNIFTY: 50, MIDCPNIFTY: 25, SENSEX: 100,
 };
 
-export default function NewStrategyPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [expiries, setExpiries] = useState<string[]>([]);
-  const [lotSize, setLotSize] = useState<number | null>(null);
-
-  const [form, setForm] = useState({
+function getInitialFormState() {
+  // Read URL params synchronously during render (safe)
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const type = params?.get('type');
+  
+  if (type === 'strangle') {
+    return {
+      name: "My OTM Strangle",
+      symbol: "NIFTY",
+      strategyType: "strangle" as "straddle" | "strangle",
+      expiry: "",
+      direction: "short" as "long" | "short",
+      quantityLots: 1,
+      entryTime: "09:20",
+      slPoints: 50,
+      targetPoints: 100,
+      maxLoss: 5000,
+      squareOffTime: "15:20",
+    };
+  }
+  
+  return {
     name: "My ATM Straddle",
     symbol: "NIFTY",
+    strategyType: "straddle" as "straddle" | "strangle",
     expiry: "",
     direction: "short" as "long" | "short",
     quantityLots: 1,
@@ -27,7 +42,17 @@ export default function NewStrategyPage() {
     targetPoints: 100,
     maxLoss: 5000,
     squareOffTime: "15:20",
-  });
+  };
+}
+
+export default function NewStrategyPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [expiries, setExpiries] = useState<string[]>([]);
+  const [lotSize, setLotSize] = useState<number | null>(null);
+
+  const [form, setForm] = useState(getInitialFormState);
 
   useEffect(() => {
     const fetchExpiriesAndLotSize = async () => {
@@ -56,7 +81,7 @@ export default function NewStrategyPage() {
     try {
       await strategyApi.createStrategy({
         name: form.name,
-        strategyType: "straddle",
+        strategyType: form.strategyType,
         config: {
           symbol: form.symbol,
           underlying: form.symbol,
@@ -96,7 +121,7 @@ export default function NewStrategyPage() {
         </button>
         <div>
           <h1 className="text-2xl font-bold text-white">New Strategy</h1>
-          <p className="text-gray-400 text-sm">Configure your ATM Straddle</p>
+          <p className="text-gray-400 text-sm">Configure your {form.strategyType === 'straddle' ? 'ATM Straddle' : 'OTM Strangle'}</p>
         </div>
       </div>
 
@@ -105,10 +130,22 @@ export default function NewStrategyPage() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-gray-900/60 border border-gray-800 rounded-xl p-6 space-y-5">
-        {/* Strategy Name */}
-        {field("Strategy Name",
-          <input id="strategy-name" type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} placeholder="My ATM Straddle" />
-        )}
+        {/* Strategy Type & Name */}
+        <div className="grid grid-cols-2 gap-4">
+          {field("Strategy Type",
+            <select 
+              value={form.strategyType} 
+              onChange={(e) => setForm({ ...form, strategyType: e.target.value as "straddle" | "strangle", name: e.target.value === 'straddle' ? 'My ATM Straddle' : 'My OTM Strangle' })} 
+              className={selectClass}
+            >
+              <option value="straddle">Short Straddle (ATM)</option>
+              <option value="strangle">Short Strangle (OTM)</option>
+            </select>
+          )}
+          {field("Strategy Name",
+            <input id="strategy-name" type="text" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inputClass} placeholder="Strategy Name" />
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           {/* Symbol */}

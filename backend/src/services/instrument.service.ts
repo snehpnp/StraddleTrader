@@ -42,32 +42,26 @@ class InstrumentService {
 
   async loadMaster() {
     try {
-      console.log('🔄 Loading NFO Master...');
-      
       const fileExists = fs.existsSync(this.masterFilePath);
-      let shouldDownload = !fileExists;
-
-      if (fileExists) {
-        const stats = fs.statSync(this.masterFilePath);
-        const lastModified = new Date(stats.mtime);
-        const today = new Date();
-        
-        // Check if file is from a previous day and it's already past 7 AM
-        const isToday = lastModified.getDate() === today.getDate() && 
-                        lastModified.getMonth() === today.getMonth() &&
-                        lastModified.getFullYear() === today.getFullYear();
-        
-        if (!isToday && today.getHours() >= 7) {
-          shouldDownload = true;
-        }
-
-        if (stats.size === 0) shouldDownload = true;
-      }
-
-      if (shouldDownload) {
+      
+      // Only download if file doesn't exist or is empty
+      // Daily updates are handled by cron job at 7 AM
+      if (!fileExists) {
+        console.log('📥 Master file not found, downloading...');
         await this.downloadMaster();
+        console.log('✅ Download complete');
+      } else {
+        const stats = fs.statSync(this.masterFilePath);
+        if (stats.size === 0) {
+          console.log('📥 Master file is empty, re-downloading...');
+          await this.downloadMaster();
+          console.log('✅ Re-download complete');
+        } else {
+          console.log('📁 Using existing master file (no download needed)');
+        }
       }
 
+      console.log('🔄 Loading instruments from master file...');
       const raw = fs.readFileSync(this.masterFilePath, 'utf8');
       const json = JSON.parse(raw);
       

@@ -17,6 +17,7 @@ export interface IStrategyConfig {
     token?: string;
     tradingSymbol?: string;
     action: 'BUY' | 'SELL';
+    lotSize?: number;
   }>;
 }
 
@@ -37,14 +38,14 @@ export interface IStrategy extends Document {
 
 const StrategySchema = new Schema<IStrategy>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true },
     strategyType: {
       type: String,
       enum: ['straddle', 'strangle', 'iron_condor'],
       default: 'straddle',
     },
-    isActive: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: false, index: true },
     config: {
       underlying: { type: String, required: true, default: 'NIFTY' },
       expiry: { type: String, required: true },
@@ -63,6 +64,7 @@ const StrategySchema = new Schema<IStrategy>(
           token: String,
           tradingSymbol: String,
           action: { type: String, enum: ['BUY', 'SELL'] },
+          lotSize: Number,
         },
       ],
     },

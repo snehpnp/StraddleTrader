@@ -5,6 +5,7 @@ export interface IBrokerConnection extends Document {
   apiKeyEncrypted: string;
   apiSecretEncrypted: string;
   accessTokenEncrypted: string;
+  feedTokenEncrypted?: string;  // For WebSocket streaming
   brokerUserId?: string;
   brokerName?: string;
   status: 'connected' | 'disconnected' | 'error';
@@ -20,6 +21,7 @@ const BrokerConnectionSchema = new Schema<IBrokerConnection>(
     apiKeyEncrypted: { type: String, required: true },
     apiSecretEncrypted: { type: String, required: true },
     accessTokenEncrypted: { type: String, default: '' },
+    feedTokenEncrypted: { type: String },  // For WebSocket streaming
     brokerUserId: { type: String },
     brokerName: { type: String, default: 'Stoxkart' },
     status: {

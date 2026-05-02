@@ -5,9 +5,17 @@ export interface Strategy {
   name: string;
   symbol?: string;
   exchange?: string;
-  strategyType?: string;
-  config?: Record<string, unknown>;
-  status: 'active' | 'inactive' | 'completed' | 'error';
+  strategyType?: 'straddle' | 'strangle' | 'iron_condor';
+  config?: {
+    underlying?: string;
+    symbol?: string;
+    expiry?: string;
+    direction?: 'long' | 'short';
+    quantityLots?: number;
+    [key: string]: unknown;
+  };
+  status: 'draft' | 'active' | 'stopped' | 'completed' | 'error';
+  currentPnL?: number;
   settings?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;

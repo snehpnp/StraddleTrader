@@ -3,6 +3,7 @@ import BrokerConnection from '../models/BrokerConnection';
 import { decrypt } from '../services/encryption.service';
 import { StoxkartService } from '../services/stoxkart.service';
 import { instrumentService } from '../services/instrument.service';
+import { feedService, INDEX_TOKENS } from '../services/feed.service';
 
 interface AuthReq extends Request { userId?: string; }
 
@@ -61,6 +62,31 @@ export const getLotSize = async (req: AuthReq, res: Response): Promise<void> => 
     
     const lotSize = instrumentService.getLotSize(underlying as string);
     res.json({ success: true, lotSize });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Error';
+    res.status(500).json({ success: false, message: msg });
+  }
+};
+
+export const getLivePrices = async (req: AuthReq, res: Response): Promise<void> => {
+  try {
+    const prices: Record<string, { ltp: number | null; change: number; changePercent: number }> = {};
+    
+    for (const [symbol, token] of Object.entries(INDEX_TOKENS)) {
+      const data = feedService.getPriceData(symbol as any);
+      prices[symbol] = {
+        ltp: data?.ltp || null,
+        change: data?.change || 0,
+        changePercent: data?.changePercent || 0,
+      };
+    }
+    
+    res.json({ 
+      success: true, 
+      prices,
+      wsConnected: feedService.isWebSocketConnected(),
+      timestamp: new Date().toISOString()
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Error';
     res.status(500).json({ success: false, message: msg });

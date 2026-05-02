@@ -16,6 +16,7 @@ export type { Broker } from './broker';
 
 // Market APIs
 export * as marketApi from './market';
+export type { LivePriceData } from './market';
 
 // Portfolio APIs
 export * as portfolioApi from './portfolio';

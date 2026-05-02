@@ -1,23 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Zap, Plus, Play, Square, LogOut, Trash2, Clock, CheckCircle, XCircle } from "lucide-react";
-import { strategyApi } from "@/api";
-
-interface Strategy {
-  _id: string;
-  name: string;
-  strategyType: string;
-  status: string;
-  config: {
-    underlying: string;
-    expiry: string;
-    direction: string;
-    quantityLots: number;
-  };
-  currentPnL: number;
-  createdAt: string;
-}
+import { useRouter } from "next/navigation";
+import { Zap, Plus, Play, Square, LogOut, Trash2, Clock, CheckCircle, XCircle, BookOpen } from "lucide-react";
+import { strategyApi, type Strategy } from "@/api";
 
 const statusColors: Record<string, string> = {
   draft: "text-gray-400 bg-gray-500/10 border-gray-500/30",
@@ -34,40 +20,50 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 export default function StrategyPage() {
+  const router = useRouter();
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchStrategies = async () => {
-      try {
-        const { data } = await strategyApi.getStrategies();
-        setStrategies(data.strategies || []);
-      } catch { /* silent */ }
-      finally { setLoading(false); }
-    };
-    fetchStrategies();
+  const fetchStrategies = useCallback(async () => {
+    try {
+      const { data } = await strategyApi.getStrategies();
+      setStrategies(data.strategies || []);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
   }, []);
+
+  useEffect(() => {
+    fetchStrategies();
+  }, [fetchStrategies]);
 
   const action = async (id: string, endpoint: string) => {
     setActionId(id);
-    if (endpoint === "activate") {
-      await strategyApi.activateStrategy(id);
-    } else if (endpoint === "deactivate") {
-      await strategyApi.deactivateStrategy(id);
-    } else if (endpoint === "exit") {
-      await strategyApi.exitStrategy(id);
+    try {
+      if (endpoint === "activate") {
+        await strategyApi.activateStrategy(id);
+      } else if (endpoint === "deactivate") {
+        await strategyApi.deactivateStrategy(id);
+      } else if (endpoint === "exit") {
+        await strategyApi.exitStrategy(id);
+      }
+      await fetchStrategies();
+    } catch { /* silent */ }
+    finally {
+      setActionId(null);
     }
-    await fetchStrategies();
-    setActionId(null);
   };
 
   const deleteStrategy = async (id: string) => {
     if (!confirm("Delete this strategy?")) return;
     setActionId(id);
-    await strategyApi.deleteStrategy(id);
-    await fetchStrategies();
-    setActionId(null);
+    try {
+      await strategyApi.deleteStrategy(id);
+      await fetchStrategies();
+    } catch { /* silent */ }
+    finally {
+      setActionId(null);
+    }
   };
 
   return (
@@ -77,13 +73,21 @@ export default function StrategyPage() {
           <h1 className="text-2xl font-bold text-white">Strategies</h1>
           <p className="text-gray-400 text-sm mt-0.5">Manage your algo trading strategies</p>
         </div>
-        <Link
-          href="/strategy/new"
-          id="new-strategy-btn"
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20"
-        >
-          <Plus className="w-4 h-4" /> New Strategy
-        </Link>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => router.push("/strategy/learn")} 
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-gray-300 hover:text-white text-sm font-medium transition-all"
+          >
+            <BookOpen className="w-4 h-4" /> Learning Center
+          </button>
+          <Link
+            href="/strategy/new"
+            id="new-strategy-btn"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white rounded-lg text-sm font-semibold transition-all shadow-lg shadow-emerald-500/20"
+          >
+            <Plus className="w-4 h-4" /> New Strategy
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -109,15 +113,15 @@ export default function StrategyPage() {
                       {statusIcons[s.status]} {s.status.toUpperCase()}
                     </span>
                     <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-full text-xs">
-                      {s.config.direction === "long" ? "Long" : "Short"} Straddle
+                      {s.config?.direction === "long" ? "Long" : "Short"} {s.strategyType === 'strangle' ? 'Strangle' : 'Straddle'}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-4 text-xs text-gray-500">
-                    <span><span className="text-gray-400">Underlying:</span> {s.config.underlying}</span>
-                    <span><span className="text-gray-400">Expiry:</span> {s.config.expiry}</span>
-                    <span><span className="text-gray-400">Lots:</span> {s.config.quantityLots}</span>
-                    <span className={s.currentPnL >= 0 ? "text-emerald-400" : "text-red-400"}>
-                      P&L: {s.currentPnL >= 0 ? "+" : ""}₹{s.currentPnL.toFixed(2)}
+                    <span><span className="text-gray-400">Underlying:</span> {s.config?.underlying || s.config?.symbol || '-'}</span>
+                    <span><span className="text-gray-400">Expiry:</span> {s.config?.expiry || '-'}</span>
+                    <span><span className="text-gray-400">Lots:</span> {s.config?.quantityLots ?? '-'}</span>
+                    <span className={(s.currentPnL ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}>
+                      P&L: {(s.currentPnL ?? 0) >= 0 ? "+" : ""}₹{(s.currentPnL ?? 0).toFixed(2)}
                     </span>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getQuote, getInstruments, getExpiries, getLotSize } from '../controllers/market.controller';
+import { getQuote, getInstruments, getExpiries, getLotSize, getLivePrices } from '../controllers/market.controller';
 import { enhancedAuthMiddleware } from '../middleware/tokenRefresh';
 
 const router = Router();
@@ -10,5 +10,6 @@ router.get('/quote', getQuote);
 router.get('/instruments', getInstruments);
 router.get('/expiries', getExpiries);
 router.get('/lot-size', getLotSize);
+router.get('/live-prices', getLivePrices);
 
 export default router;

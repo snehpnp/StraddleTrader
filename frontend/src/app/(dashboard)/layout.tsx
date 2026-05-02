@@ -16,6 +16,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/components/auth";
+import Image from "next/image";
+import LivePriceTicker from "@/components/LivePriceTicker";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -37,13 +39,16 @@ interface SidebarProps {
 function Sidebar({ pathname, userName, setSidebarOpen, onLogout }: SidebarProps) {
   return (
     <aside className="flex flex-col h-full bg-gray-900 border-r border-gray-800 w-64">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5 border-b border-gray-800">
-        <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shadow-md shadow-emerald-500/30 flex-shrink-0">
-          <TrendingUp className="w-4 h-4 text-white" />
-        </div>
-        <span className="text-white font-bold text-base">StraddleTrader</span>
-      </div>
+     <div className="flex ml-4 border-b border-gray-800">
+  <Image
+    src="/logo_trans.png"
+    alt="StraddleTrader Logo"
+    width={160}
+    height={40}
+    className="object-contain"
+    priority
+  />
+</div>
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
@@ -178,6 +183,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           )}
         </header>
+
+        {/* Live Price Ticker - Desktop only (mobile has limited space) */}
+        <div className="hidden lg:block">
+          <LivePriceTicker />
+        </div>
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">

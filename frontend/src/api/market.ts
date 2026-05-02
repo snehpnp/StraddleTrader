@@ -29,3 +29,18 @@ export const getLotSize = (underlying: string) =>
   axiosInstance.get<{ success: boolean; lotSize: number | null }>('/api/market/lot-size', {
     params: { underlying },
   });
+
+// Get live index prices (NIFTY, BANKNIFTY, etc.)
+export interface LivePriceData {
+  ltp: number | null;
+  change: number;
+  changePercent: number;
+}
+
+export const getLivePrices = () =>
+  axiosInstance.get<{ 
+    success: boolean; 
+    prices: Record<string, LivePriceData>;
+    wsConnected: boolean;
+    timestamp: string;
+  }>('/api/market/live-prices');
