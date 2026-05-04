@@ -22,6 +22,10 @@ export const getBrokerStatus = () =>
 export const saveCredentials = (apiKey: string, apiSecret: string) =>
   axiosInstance.post<{ success: boolean; message: string }>('/api/broker/credentials', { apiKey, apiSecret });
 
+// Get saved credentials (masked API key)
+export const getCredentials = () =>
+  axiosInstance.get<{ success: boolean; hasCredentials: boolean; apiKey: string | null; status?: string; brokerUserId?: string }>('/api/broker/credentials');
+
 // Get Stoxkart login URL
 export const getLoginUrl = () =>
   axiosInstance.get<{ success: boolean; url: string }>('/api/broker/login-url');

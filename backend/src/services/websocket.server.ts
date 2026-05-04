@@ -56,7 +56,7 @@ class ClientWebSocketServer {
           
           if (message.action === 'subscribe' && message.indices) {
             client.subscribedIndices = message.indices;
-            console.log('[WS] 📡 Client subscribed to:', message.indices);
+            // console.log('[WS] 📡 Client subscribed to:', message.indices);
           }
           
           if (message.action === 'ping') {

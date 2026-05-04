@@ -5,6 +5,7 @@ import {
   connectBroker,
   getBrokerStatus,
   disconnectBroker,
+  getCredentials,
 } from '../controllers/broker.controller';
 import { enhancedAuthMiddleware } from '../middleware/tokenRefresh';
 
@@ -13,6 +14,7 @@ const router = Router();
 router.use(enhancedAuthMiddleware);
 
 router.post('/credentials', saveCredentials);
+router.get('/credentials', getCredentials);
 router.get('/login-url', getLoginUrl);
 router.post('/connect', connectBroker);
 router.get('/status', getBrokerStatus);

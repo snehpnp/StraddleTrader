@@ -130,3 +130,30 @@ export const disconnectBroker = async (req: AuthReq, res: Response): Promise<voi
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+export const getCredentials = async (req: AuthReq, res: Response): Promise<void> => {
+  try {
+    const conn = await BrokerConnection.findOne({ userId: req.userId });
+    if (!conn) {
+      res.json({ success: true, hasCredentials: false, apiKey: null });
+      return;
+    }
+    
+    // Decrypt and mask API key (show last 4 characters only)
+    const apiKey = decrypt(conn.apiKeyEncrypted);
+    const maskedApiKey = apiKey.length > 4 
+      ? '*'.repeat(apiKey.length - 4) + apiKey.slice(-4)
+      : '*'.repeat(apiKey.length);
+    
+    res.json({
+      success: true,
+      hasCredentials: true,
+      apiKey: maskedApiKey,
+      status: conn.status,
+      brokerUserId: conn.brokerUserId,
+    });
+  } catch (err) {
+    console.error('getCredentials error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
